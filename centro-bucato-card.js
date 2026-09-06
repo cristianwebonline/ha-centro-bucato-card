@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.1.0";
+const CBC_VERSION = "3.1.1";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -483,7 +483,14 @@ class CentroBucatoCardEditor extends HTMLElement {
     this._config = Object.assign({}, CBC_DEFAULTS[kind], config || {}, { kind });
     this._render();
   }
-  set hass(h) { this._hass = h; if (!this._done && h) { this._done = true; this._render(); } }
+  set hass(h) {
+    this._hass = h;
+    // HA a volte imposta hass PRIMA di chiamare setConfig: se la config non è
+    // ancora arrivata non c'è nulla da disegnare, il render vero avverrà dentro
+    // setConfig() appena arriva. Se invece hass arriva DOPO (config già presente)
+    // ridisegna per aggiornare le liste di entità nei menù a tendina.
+    if (h && this._config) this._render();
+  }
 
   _emit() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
   _set(key, val) { this._config = Object.assign({}, this._config, { [key]: val }); this._emit(); }
@@ -501,6 +508,7 @@ class CentroBucatoCardEditor extends HTMLElement {
   }
 
   _render() {
+    if (!this._config) return; // config non ancora arrivata: niente da disegnare
     const c = this._config;
     const isWash = c.kind === "lavatrice";
     this.innerHTML = `<style>
