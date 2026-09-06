@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.1.1";
+const CBC_VERSION = "3.2.0";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -75,6 +75,11 @@ class CentroBucatoCard extends HTMLElement {
   }
 
   getCardSize() { return 6; }
+  // Dashboard "sections": dichiara che la card è ridimensionabile — HA mostra la
+  // scheda "Layout" nell'editor con le maniglie per allungarla/accorciarla.
+  getLayoutOptions() {
+    return { grid_rows: 6, grid_columns: 4, grid_min_rows: 3, grid_max_rows: 14, grid_min_columns: 2, grid_max_columns: 6 };
+  }
   static getConfigElement() { return document.createElement("centro-bucato-card-editor"); }
   static getStubConfig() { return JSON.parse(JSON.stringify(CBC_DEFAULTS.lavatrice)); }
 
@@ -144,6 +149,17 @@ class CentroBucatoCard extends HTMLElement {
   }
 
   _isOngoing(cycle) { return (Date.now() - cycle.end.getTime()) < 2 * 3600000; }
+
+  // Se è configurata una foto vera (photo_url), mostra quella; altrimenti il
+  // disegno animato. Il badge/LED restano gli stessi in entrambi i casi.
+  _visual() {
+    if (this._cfg.photo_url) {
+      return `<img src="${this._esc(this._cfg.photo_url)}" alt="${this._esc(this._cfg.name)}"
+        style="width:100%;border-radius:16px;display:block;object-fit:cover;max-height:280px"
+        onerror="this.style.display='none'">`;
+    }
+    return this._machineSVG();
+  }
 
   // ---- grafica macchina (diversa lavatrice/asciugatrice) --------------------
   _machineSVG() {
@@ -250,10 +266,11 @@ class CentroBucatoCard extends HTMLElement {
     this.innerHTML = `
     <style>
       .cbc{--cbc-panel:rgba(30,38,48,.72);--cbc-stroke:rgba(255,255,255,.09);--cbc-ink:#eaf1f8;--cbc-muted:#93a1b0;
-        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--cbc-ink);padding:6px}
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--cbc-ink);padding:6px;
+        height:100%;display:flex;flex-direction:column}
       .cbc *{box-sizing:border-box}
       .cbc-machine{background:var(--cbc-panel);border:1px solid var(--cbc-stroke);border-radius:22px;padding:16px 14px;
-        display:flex;flex-direction:column;align-items:center;gap:6px;backdrop-filter:blur(14px);
+        flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;backdrop-filter:blur(14px);
         box-shadow:0 10px 26px rgba(0,0,0,.35);position:relative;overflow:hidden}
       .cbc-machine::before{content:"";position:absolute;inset:0;border-radius:22px;pointer-events:none;
         background:radial-gradient(120% 60% at 50% -10%,rgba(255,255,255,.06),transparent 60%)}
@@ -346,7 +363,7 @@ class CentroBucatoCard extends HTMLElement {
     </style>
     <div class="cbc">
       <div class="cbc-machine" data-kind="${isWash ? 'wash' : 'dry'}">
-        <div class="cbc-glass-wrap" data-role="tap">${this._machineSVG()}<div class="cbc-led" data-role="led"></div></div>
+        <div class="cbc-glass-wrap" data-role="tap">${this._visual()}<div class="cbc-led" data-role="led"></div></div>
         <div class="cbc-name">${this._esc(this._cfg.name)}</div>
         <div class="cbc-plugbadge" data-role="plugbadge" hidden><span class="dot"></span><span class="lbl">—</span></div>
         <div class="cbc-state" data-role="state">—</div>
@@ -547,6 +564,9 @@ class CentroBucatoCardEditor extends HTMLElement {
             <option value="14"${c.storico_giorni == 14 ? " selected" : ""}>14 giorni</option>
             <option value="30"${c.storico_giorni == 30 ? " selected" : ""}>30 giorni</option></select></div>
       </div>
+      <div class="fld"><label>Foto (URL) — opzionale</label>
+        <span class="h">Incolla il link di una foto vera della tua macchina per usarla al posto del disegno</span>
+        <input type="text" id="f_photo" placeholder="https://..." value="${(c.photo_url || "").replace(/"/g, "&quot;")}"></div>
       <div class="note">💡 Le soglie di fase sono una STIMA dal consumo: guarda i watt reali durante un ciclo (Storico → oppure "Sviluppatori → Stati") e regola qui i valori che separano meglio lavaggio/centrifuga/riscaldamento sulla tua macchina.</div>
     </div>`;
     const on = (id, ev, fn) => { const el = this.querySelector(id); if (el) el.addEventListener(ev, fn); };
@@ -560,6 +580,7 @@ class CentroBucatoCardEditor extends HTMLElement {
     on("#f_sr", "change", e => this._set("soglia_riscaldamento", parseInt(e.target.value) || 0));
     on("#f_price", "change", e => this._set("prezzo_kwh", parseFloat(String(e.target.value).replace(",", ".")) || 0.30));
     on("#f_days", "change", e => this._set("storico_giorni", parseInt(e.target.value) || 14));
+    on("#f_photo", "change", e => this._set("photo_url", e.target.value.trim()));
   }
 }
 customElements.define("centro-bucato-card-editor", CentroBucatoCardEditor);
