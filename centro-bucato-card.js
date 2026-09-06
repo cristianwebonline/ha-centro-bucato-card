@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.0.2";
+const CBC_VERSION = "3.1.0";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -43,6 +43,16 @@ function classifyPhase(kind, p, cfg) {
     if (sr > 0 && p >= sr) return { key: "heat", label: "Asciugatura (riscaldamento)" };
     return { key: "cool", label: "Ventilazione" };
   }
+}
+
+// Etichetta corta per il display a 10 caratteri sul pannello (diverso dal testo
+// esteso sotto il nome). "CENTRIFUGA" ci sta esatta, le altre sono abbreviate.
+function dispLabelFor(kind, key) {
+  if (key === "wash") return "LAVAGGIO";
+  if (key === "spin") return "CENTRIFUGA";
+  if (key === "heat") return kind === "lavatrice" ? "RISCALDO" : "ASCIUGO";
+  if (key === "cool") return "VENTOLA";
+  return "IN CORSO";
 }
 
 class CentroBucatoCard extends HTMLElement {
@@ -258,13 +268,20 @@ class CentroBucatoCard extends HTMLElement {
       .cbc-machine[data-phase="cool"] .cbc-led{background:#38e08a;box-shadow:0 0 10px #38e08a,0 0 0 2px rgba(0,0,0,.2)}
       @keyframes cbc-blink{50%{opacity:.35}}
       .cbc-name{font-size:16px;font-weight:800;margin-top:4px}
-      .cbc-plugbadge{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;margin-top:5px;
-        font-size:10.5px;font-weight:800;letter-spacing:.3px;background:rgba(255,255,255,.06);border:1px solid var(--cbc-stroke);color:var(--cbc-muted)}
+      .cbc-plugbadge{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;margin-top:5px;
+        font-size:10.5px;font-weight:800;letter-spacing:.3px;background:rgba(255,255,255,.06);border:1px solid var(--cbc-stroke);
+        color:var(--cbc-muted);cursor:pointer;transition:transform .12s,filter .15s}
+      .cbc-plugbadge:hover{transform:translateY(-1px);filter:brightness(1.15)}
       .cbc-plugbadge .dot{width:7px;height:7px;border-radius:50%;background:#5a6572;flex:0 0 auto}
-      .cbc-plugbadge[data-plug="on"]{background:rgba(56,224,138,.14);border-color:rgba(56,224,138,.4);color:#8ff0b4}
+      .cbc-plugbadge[data-plug="on"]{background:rgba(56,224,138,.16);border-color:rgba(56,224,138,.45);color:#8ff0b4;
+        animation:cbc-plug-blink 3s ease-in-out infinite}
       .cbc-plugbadge[data-plug="on"] .dot{background:#38e08a;box-shadow:0 0 6px #38e08a}
       .cbc-plugbadge[data-plug="off"]{background:rgba(255,84,66,.10);border-color:rgba(255,84,66,.3);color:#ffb0a3}
       .cbc-plugbadge[data-plug="off"] .dot{background:#ff5442}
+      @keyframes cbc-plug-blink{0%,100%{opacity:1}50%{opacity:.55}}
+      /* sfondo dell'intera card tinto quando la presa è accesa */
+      .cbc-machine{transition:background-color .6s ease,border-color .6s ease}
+      .cbc-machine.plug-on{background-color:rgba(56,224,138,.09);border-color:rgba(56,224,138,.28)}
       .cbc-state{font-size:12.5px;font-weight:700;color:var(--cbc-muted);transition:color .3s}
       .cbc-machine[data-phase="wash"] .cbc-state{color:#47b5ff}
       .cbc-machine[data-phase="spin"] .cbc-state{color:#a06bff}
@@ -337,7 +354,6 @@ class CentroBucatoCard extends HTMLElement {
         <div class="cbc-lastcycle" data-role="lastcycle" hidden></div>
         <div class="cbc-actions">
           <button class="cbc-btn" data-role="histbtn">📜 Storico e costi</button>
-          <button class="cbc-btn cbc-btn-pwr" data-role="btn" hidden></button>
         </div>
       </div>
     </div>`;
@@ -345,7 +361,8 @@ class CentroBucatoCard extends HTMLElement {
     this._el = this.querySelector(".cbc-machine");
     this.querySelector('[data-role="tap"]').onclick = () => this._openHistory();
     this.querySelector('[data-role="histbtn"]').onclick = () => this._openHistory();
-    this.querySelector('[data-role="btn"]').onclick = () => this._togglePower();
+    const badge = this.querySelector('[data-role="plugbadge"]');
+    badge.onclick = e => { e.stopPropagation(); this._togglePower(); };
   }
 
   _togglePower() {
@@ -363,25 +380,31 @@ class CentroBucatoCard extends HTMLElement {
     this._el.dataset.phase = phase.key;
     this._el.querySelector('[data-role="state"]').textContent = phase.label;
     this._el.querySelector('[data-role="power"]').textContent = p != null ? Math.round(p) : "–";
-    const disp = this._el.querySelector('[data-role="disp"]');
-    if (disp) disp.textContent = running ? phase.label.toUpperCase().slice(0, 10) : "PRONTA";
     const sw = this._cfg.switch && this._hass.states[this._cfg.switch];
-    const on = running || (sw && sw.state === "on");
-    const btn = this._el.querySelector('[data-role="btn"]');
-    if (this._cfg.switch) {
-      btn.hidden = false;
-      btn.textContent = on ? "🔌 Spegni presa" : "🔌 Accendi presa";
-      btn.dataset.on = on ? "1" : "0";
-    } else btn.hidden = true;
-    // Badge dedicato: stato REALE della presa (fatto, non stima), separato dalla
-    // fase — la presa può essere accesa anche a macchina ferma (in attesa).
+    // Display: se la presa è spenta non ha senso dire "PRONTA" (non lo è, è staccata) →
+    // "SPENTA". Presa accesa e ferma → "PRONTA". Presa accesa e in un programma →
+    // il nome della fase (es. "CENTRIFUGA").
+    const disp = this._el.querySelector('[data-role="disp"]');
+    if (disp) {
+      if (sw && sw.state !== "on") disp.textContent = "SPENTA";
+      else if (!running) disp.textContent = "PRONTA";
+      else disp.textContent = dispLabelFor(this._cfg.kind, phase.key);
+    }
+    // Badge = comando: stato REALE della presa (fatto, non stima), separato dalla
+    // fase — la presa può essere accesa anche a macchina ferma (in attesa). Tocco
+    // il badge per accendere/spegnere; quando è acceso lampeggia piano e lo sfondo
+    // della card si tinge, così si capisce a colpo d'occhio senza leggere il testo.
     const badge = this._el.querySelector('[data-role="plugbadge"]');
     if (sw) {
       badge.hidden = false;
       const plugOn = sw.state === "on";
       badge.dataset.plug = plugOn ? "on" : "off";
       badge.querySelector(".lbl").textContent = plugOn ? "Presa accesa" : "Presa spenta";
-    } else badge.hidden = true;
+      this._el.classList.toggle("plug-on", plugOn);
+    } else {
+      badge.hidden = true;
+      this._el.classList.remove("plug-on");
+    }
     const lc = this._el.querySelector('[data-role="lastcycle"]');
     const hist = this._hist;
     if (hist && hist.cycles && hist.cycles.length) {
