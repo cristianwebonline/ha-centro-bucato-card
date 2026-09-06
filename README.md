@@ -1,40 +1,40 @@
 # Centro Bucato Card
 
-Centro di controllo per **lavatrice e asciugatrice** in Home Assistant, con grafica
-realistica e animata, storico cicli e costo. Gira nel browser e legge/comanda le
-entità via `hass`, quindi non dipende da server esterni.
+Card **indipendente** per una lavatrice O un'asciugatrice (metti due card per averle
+separate), con grafica realistica animata, rilevamento fase dal consumo, storico
+cicli e costo. Gira nel browser e legge/comanda le entità via `hass`, quindi non
+dipende da server esterni.
 
-- Lavatrice e asciugatrice **disegnate realistiche e DIVERSE tra loro** (SVG):
-  la lavatrice ha cassetto detersivo e tacche livello acqua, l'asciugatrice ha
-  sportellino filtro lanugine, sfiato posteriore e manopola temperatura
-- **Oblò che gira** quando la macchina è in funzione
-- **Acqua + schiuma** animate nella lavatrice, **vapore/calore** nell'asciugatrice
-- Stato live (In funzione / Ferma), **potenza (W)**
+- Una card = una macchina (`kind: lavatrice` o `kind: asciugatrice`) — spostabili,
+  ridimensionabili e configurabili in modo indipendente
+- Lavatrice e asciugatrice **disegnate realistiche e diverse tra loro**: la lavatrice
+  ha cassetto detersivo e tacche livello acqua, l'asciugatrice ha sportellino filtro
+  lanugine, sfiato posteriore e manopola temperatura
+- **Rilevamento fase dal consumo** (euristica a soglie, regolabile nell'editor):
+  Ferma → Lavaggio/risciacquo → Centrifuga (per la lavatrice, l'oblò gira più veloce)
+  → Riscaldamento acqua; per l'asciugatrice: Ferma → Ventilazione → Riscaldamento
 - **Costo dell'ultimo ciclo** visibile direttamente sulla card (durata, kWh, €)
-- **Storico cicli** (data/ora, durata, kWh, costo) e **grafico consumo 7/30 giorni**,
-  ricostruiti dallo storico energia già presente in Home Assistant (nessun helper
-  nuovo da creare) — si apre toccando l'oblò o "📜 Storico e costi"
-- LED e display che si accendono
-- Pulsante che **accende/spegne la presa** (se configurata)
-- **Editor visuale**: scegli entità, nomi, soglie, prezzo €/kWh senza toccare YAML
+- **Storico cicli** e **grafico consumo 7/30 giorni**, ricostruiti dallo storico
+  energia già presente in Home Assistant (nessun helper nuovo da creare)
+- Pulsante che accende/spegne la presa (se configurata)
+- **Editor visuale** completo, senza toccare YAML
 
 ## Uso
 
 ```yaml
 type: custom:centro-bucato-card
-title: Lavatoio
-prezzo_kwh: 0.30        # €/kWh, costo orientativo
-storico_giorni: 14      # 7/14/30 - quanti giorni indietro per storico e grafico
-lavatrice:
-  name: Lavatrice
-  power: sensor.lavatrice_power
-  energy: sensor.lavatrice_energy   # serve per storico/costo
-  switch: ""          # opzionale (switch. o input_boolean.)
-  soglia: 10          # W sopra cui è "in funzione"
-asciugatrice:
-  name: Asciugatrice
-  power: sensor.asciugatrice_power
-  energy: sensor.asciugatrice_energy
-  switch: ""
-  soglia: 10
+kind: lavatrice              # lavatrice | asciugatrice
+name: Lavatrice
+power: sensor.lavatrice_power
+energy: sensor.lavatrice_energy   # serve per storico/costo
+switch: switch.lavatrice          # opzionale
+soglia: 10                        # W sopra cui è "in funzione"
+soglia_centrifuga: 300            # solo lavatrice, 0 = disattiva
+soglia_riscaldamento: 1500        # 0 = disattiva
+prezzo_kwh: 0.30                  # €/kWh, costo orientativo
+storico_giorni: 14                # 7/14/30
 ```
+
+Le soglie di fase sono una stima dal consumo istantaneo: osserva i watt reali
+durante un ciclo (Storico → sviluppatori → Stati) e regola i valori nell'editor
+per separare bene lavaggio/centrifuga/riscaldamento sulla tua macchina.
