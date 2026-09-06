@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.3.2";
+const CBC_VERSION = "3.3.3";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -16,13 +16,19 @@ const WD = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 // dentro questa card come uno swipe di cambio-vista. Ferma la propagazione del gesto
 // (senza preventDefault): lo scroll verticale della pagina e i tap sui pulsanti
 // continuano a funzionare normalmente.
+// hass-swipe-navigation stesso ignora già i gesti dentro <hui-card-edit-mode>
+// (il wrapper che HA mette intorno alle card quando la dashboard è in
+// modifica, per non rubare il drag-and-drop di riordino) — controllando lì
+// dentro NON dobbiamo bloccare nulla noi. Il tentativo precedente (guardare
+// "edit=1" nell'URL) era sbagliato: le dashboard "sections" non cambiano
+// l'URL entrando in modifica, per questo il riordino restava bloccato.
+function cbcInEditMode(e) {
+  const path = e.composedPath ? e.composedPath() : [];
+  return path.some(n => n.tagName === "HUI-CARD-EDIT-MODE");
+}
 function stopSwipeNavHijack(el) {
-  // In modalità modifica dashboard (URL con "edit=1") non blocchiamo nulla:
-  // altrimenti l'editor di HA non riceve più il gesto e la card non si può
-  // più trascinare per riordinarla o ridimensionarla.
-  const inEditMode = () => location.search.indexOf("edit=1") !== -1;
   ["touchstart", "touchmove", "touchend", "pointerdown", "pointermove"].forEach(evt =>
-    el.addEventListener(evt, e => { if (!inEditMode()) e.stopPropagation(); }, { passive: true }));
+    el.addEventListener(evt, e => { if (!cbcInEditMode(e)) e.stopPropagation(); }, { passive: true }));
 }
 
 const CBC_DEFAULTS = {
