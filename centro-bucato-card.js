@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.2.0";
+const CBC_VERSION = "3.2.1";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -74,11 +74,11 @@ class CentroBucatoCard extends HTMLElement {
     if (!this._histLoading && Date.now() - this._histTs > 10 * 60 * 1000) this._loadHistory();
   }
 
-  getCardSize() { return 6; }
+  getCardSize() { return 8; }
   // Dashboard "sections": dichiara che la card è ridimensionabile — HA mostra la
   // scheda "Layout" nell'editor con le maniglie per allungarla/accorciarla.
   getLayoutOptions() {
-    return { grid_rows: 6, grid_columns: 4, grid_min_rows: 3, grid_max_rows: 14, grid_min_columns: 2, grid_max_columns: 6 };
+    return { grid_rows: 8, grid_columns: 4, grid_min_rows: 4, grid_max_rows: 14, grid_min_columns: 2, grid_max_columns: 6 };
   }
   static getConfigElement() { return document.createElement("centro-bucato-card-editor"); }
   static getStubConfig() { return JSON.parse(JSON.stringify(CBC_DEFAULTS.lavatrice)); }
@@ -267,7 +267,7 @@ class CentroBucatoCard extends HTMLElement {
     <style>
       .cbc{--cbc-panel:rgba(30,38,48,.72);--cbc-stroke:rgba(255,255,255,.09);--cbc-ink:#eaf1f8;--cbc-muted:#93a1b0;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--cbc-ink);padding:6px;
-        height:100%;display:flex;flex-direction:column}
+        min-height:100%;display:flex;flex-direction:column}
       .cbc *{box-sizing:border-box}
       .cbc-machine{background:var(--cbc-panel);border:1px solid var(--cbc-stroke);border-radius:22px;padding:16px 14px;
         flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;backdrop-filter:blur(14px);
