@@ -5,12 +5,21 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.0.0";
+const CBC_VERSION = "3.0.1";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
 
 const WD = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+
+// Impedisce a librerie tipo "hass-swipe-navigation" di leggere un tocco/trascinamento
+// dentro questa card come uno swipe di cambio-vista. Ferma la propagazione del gesto
+// (senza preventDefault): lo scroll verticale della pagina e i tap sui pulsanti
+// continuano a funzionare normalmente.
+function stopSwipeNavHijack(el) {
+  ["touchstart", "touchmove", "touchend", "pointerdown", "pointermove"].forEach(evt =>
+    el.addEventListener(evt, e => e.stopPropagation(), { passive: true }));
+}
 
 const CBC_DEFAULTS = {
   lavatrice: { kind: "lavatrice", name: "Lavatrice", power: "sensor.lavatrice_power", energy: "sensor.lavatrice_energy",
@@ -324,6 +333,7 @@ class CentroBucatoCard extends HTMLElement {
         </div>
       </div>
     </div>`;
+    stopSwipeNavHijack(this.querySelector(".cbc"));
     this._el = this.querySelector(".cbc-machine");
     this.querySelector('[data-role="tap"]').onclick = () => this._openHistory();
     this.querySelector('[data-role="histbtn"]').onclick = () => this._openHistory();
