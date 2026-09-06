@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.3.1";
+const CBC_VERSION = "3.3.2";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -17,8 +17,12 @@ const WD = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 // (senza preventDefault): lo scroll verticale della pagina e i tap sui pulsanti
 // continuano a funzionare normalmente.
 function stopSwipeNavHijack(el) {
+  // In modalità modifica dashboard (URL con "edit=1") non blocchiamo nulla:
+  // altrimenti l'editor di HA non riceve più il gesto e la card non si può
+  // più trascinare per riordinarla o ridimensionarla.
+  const inEditMode = () => location.search.indexOf("edit=1") !== -1;
   ["touchstart", "touchmove", "touchend", "pointerdown", "pointermove"].forEach(evt =>
-    el.addEventListener(evt, e => e.stopPropagation(), { passive: true }));
+    el.addEventListener(evt, e => { if (!inEditMode()) e.stopPropagation(); }, { passive: true }));
 }
 
 const CBC_DEFAULTS = {
@@ -591,18 +595,26 @@ customElements.define("centro-bucato-card", CentroBucatoCard);
 // Editor
 // ===========================================================================
 class CentroBucatoCardEditor extends HTMLElement {
+  // HA richiama setConfig() sull'editor a ogni modifica (anche quelle fatte
+  // dall'editor stesso). Ridisegnare da capo mentre l'utente sta scrivendo in
+  // un campo di testo (es. Nome) gli fa perdere il fuoco a ogni carattere —
+  // su telefono si vede la tastiera aprirsi e chiudersi ad ogni lettera.
+  // _typingLock (acceso da focus/blur sui campi di testo, vedi _render) salta
+  // il ridisegno mentre è attivo; i campi select restano invece reattivi
+  // subito, perché lì può servire aggiornare campi condizionali.
   setConfig(config) {
     const kind = (config && config.kind) === "asciugatrice" ? "asciugatrice" : "lavatrice";
     this._config = Object.assign({}, CBC_DEFAULTS[kind], config || {}, { kind });
+    if (this._typingLock) return;
     this._render();
   }
   set hass(h) {
     this._hass = h;
     // HA a volte imposta hass PRIMA di chiamare setConfig: se la config non è
     // ancora arrivata non c'è nulla da disegnare, il render vero avverrà dentro
-    // setConfig() appena arriva. Se invece hass arriva DOPO (config già presente)
-    // ridisegna per aggiornare le liste di entità nei menù a tendina.
-    if (h && this._config) this._render();
+    // setConfig() appena arriva. Dopo il primo render non serve ridisegnare a
+    // ogni tick di hass (succede spesso, anche mentre l'utente sta scrivendo).
+    if (h && this._config && !this._built) { this._render(); this._built = true; }
   }
 
   _emit() { this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true })); }
@@ -677,6 +689,10 @@ class CentroBucatoCardEditor extends HTMLElement {
     on("#f_price", "change", e => this._set("prezzo_kwh", parseFloat(String(e.target.value).replace(",", ".")) || 0.30));
     on("#f_days", "change", e => this._set("storico_giorni", parseInt(e.target.value) || 14));
     on("#f_photo", "change", e => this._set("photo_url", e.target.value.trim()));
+    this.querySelectorAll('input[type="text"], input[type="number"]').forEach(inp => {
+      inp.addEventListener("focus", () => { this._typingLock = true; });
+      inp.addEventListener("blur", () => { this._typingLock = false; });
+    });
   }
 }
 customElements.define("centro-bucato-card-editor", CentroBucatoCardEditor);
