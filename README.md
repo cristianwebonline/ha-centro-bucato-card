@@ -17,6 +17,8 @@ dipende da server esterni.
 - **Storico cicli** e **grafico consumo 7/30 giorni**, ricostruiti dallo storico
   energia già presente in Home Assistant (nessun helper nuovo da creare)
 - Pulsante che accende/spegne la presa (se configurata)
+- **Ridimensionabile in altezza/larghezza** dall'editor dashboard di HA (scheda "Layout")
+- **Foto vera opzionale** (`photo_url`): se la imposti, sostituisce il disegno con la tua foto
 - **Editor visuale** completo, senza toccare YAML
 
 ## Uso
