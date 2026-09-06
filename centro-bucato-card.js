@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.3.0";
+const CBC_VERSION = "3.3.1";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -194,7 +194,7 @@ class CentroBucatoCard extends HTMLElement {
         </style>
         <clipPath id="smart-drum-clip-w"><circle cx="200" cy="280" r="115"/></clipPath>
         <linearGradient id="body-gradient-w" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/>
+          <stop offset="0%" stop-color="#ffffff"/><stop offset="45%" stop-color="#eef2f6"/><stop offset="100%" stop-color="#c9d2db"/>
         </linearGradient>
         <radialGradient id="door-glass-smart-w" cx="35%" cy="30%" r="70%">
           <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.15"/>
@@ -283,7 +283,7 @@ class CentroBucatoCard extends HTMLElement {
         </style>
         <clipPath id="dryer-door-clip-d"><circle cx="200" cy="280" r="115"/></clipPath>
         <linearGradient id="dryer-body-d" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/>
+          <stop offset="0%" stop-color="#ffffff"/><stop offset="45%" stop-color="#f3ede4"/><stop offset="100%" stop-color="#d9cfc0"/>
         </linearGradient>
         <radialGradient id="dryer-glass-d" cx="30%" cy="30%" r="70%">
           <stop offset="0%" stop-color="#fdba74" stop-opacity="0.15"/>
