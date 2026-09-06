@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.2.1";
+const CBC_VERSION = "3.3.0";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -162,102 +162,196 @@ class CentroBucatoCard extends HTMLElement {
   }
 
   // ---- grafica macchina (diversa lavatrice/asciugatrice) --------------------
+  // Disegno "smart" fornito da Cristian (stile Samsung Bespoke/SmartThings):
+  // corpo scuro, oblò a doppio anello, cestello animato, LED smart. Il display
+  // e la spia mostrano dati veri (data-role), le animazioni sono agganciate
+  // allo stato reale (ferma/lavaggio/centrifuga/riscaldamento).
   _machineSVG() {
-    const isWash = this._cfg.kind === "lavatrice";
-    const kind = isWash ? "wash" : "dry";
-    const accent = isWash ? "#47b5ff" : "#ff8a3d";
-    const bodyTint = isWash ? "#eef4fa" : "#faf3ea";
+    return this._cfg.kind === "lavatrice" ? this._svgLavatriceSmart() : this._svgAsciugatriceSmart();
+  }
+
+  _svgLavatriceSmart() {
     return `
-    <svg viewBox="0 0 200 250" class="cbc-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 400 500" class="cbc-svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="body-${kind}" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="${bodyTint}"/><stop offset="1" stop-color="#d7dee6"/>
+        <style>
+          .spin-drum{transform-origin:200px 280px}
+          .cbc-machine.running .spin-drum{animation:st-spin 3s cubic-bezier(0.4,0,0.2,1) infinite}
+          .cbc-machine[data-phase="spin"] .spin-drum{animation-duration:.6s;animation-timing-function:linear}
+          @keyframes st-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+          .wm-water{opacity:0;transition:opacity .5s}
+          .cbc-machine:is([data-phase="wash"],[data-phase="heat"]) .wm-water{opacity:1}
+          .cbc-machine.running .bubble-1{animation:ecobubble-rise 2s ease-in infinite}
+          .cbc-machine.running .bubble-2{animation:ecobubble-rise 2.6s ease-in .5s infinite}
+          .cbc-machine.running .bubble-3{animation:ecobubble-rise 1.8s ease-in 1.1s infinite}
+          .cbc-machine.running .bubble-4{animation:ecobubble-rise 2.2s ease-in .3s infinite}
+          @keyframes ecobubble-rise{0%{transform:translateY(0) scale(.8);opacity:0}50%{opacity:.9}100%{transform:translateY(-50px) scale(1.2);opacity:0}}
+          .cbc-machine.running .water-path{animation:wave-motion 2.5s ease-in-out infinite}
+          @keyframes wave-motion{0%{transform:translateX(0)}50%{transform:translateX(-20px)}100%{transform:translateX(0)}}
+          .smart-led{opacity:.25}
+          .cbc-machine.plug-on .smart-led{animation:ai-glow 2s infinite}
+          @keyframes ai-glow{0%,100%{opacity:.4;filter:drop-shadow(0 0 2px #38bdf8)}50%{opacity:.9;filter:drop-shadow(0 0 8px #38bdf8)}}
+        </style>
+        <clipPath id="smart-drum-clip-w"><circle cx="200" cy="280" r="115"/></clipPath>
+        <linearGradient id="body-gradient-w" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/>
         </linearGradient>
-        <linearGradient id="panel-${kind}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#f7fafc"/><stop offset="1" stop-color="#dbe3ec"/>
+        <radialGradient id="door-glass-smart-w" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.15"/>
+          <stop offset="50%" stop-color="#0369a1" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#0284c7" stop-opacity="0.8"/>
+        </radialGradient>
+        <linearGradient id="ring-accent-w" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#1d4ed8"/>
         </linearGradient>
-        <radialGradient id="glassrim-${kind}" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0.62" stop-color="${isWash ? '#aebdcc' : '#ccb8a4'}"/><stop offset="0.8" stop-color="${isWash ? '#71828f' : '#8f7b68'}"/><stop offset="1" stop-color="#4a4038"/>
-        </radialGradient>
-        <radialGradient id="glass-${kind}" cx="0.38" cy="0.34" r="0.75">
-          <stop offset="0" stop-color="${isWash ? '#3a4d5c' : '#4a3a2c'}"/><stop offset="0.55" stop-color="${isWash ? '#202c36' : '#2c2018'}"/><stop offset="1" stop-color="#10161d"/>
-        </radialGradient>
-        <radialGradient id="reflect-${kind}" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stop-color="rgba(255,255,255,.55)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/>
-        </radialGradient>
-        <clipPath id="drumclip-${kind}"><circle cx="100" cy="138" r="50"/></clipPath>
       </defs>
 
-      <rect x="26" y="10" width="148" height="230" rx="16" fill="url(#body-${kind})" stroke="#c2cbd4" stroke-width="1.5"/>
-      <rect x="26" y="10" width="148" height="230" rx="16" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1" opacity=".6"/>
+      <rect x="30" y="20" width="340" height="460" rx="24" fill="url(#body-gradient-w)" stroke="#334155" stroke-width="3"/>
+      <rect x="45" y="35" width="310" height="75" rx="12" fill="#090d16" stroke="#1e293b" stroke-width="2"/>
+      <text x="65" y="60" fill="#f8fafc" font-family="-apple-system,sans-serif" font-size="12" font-weight="800" letter-spacing="2.5">SAMSUNG</text>
+      <text x="65" y="75" fill="#94a3b8" font-family="-apple-system,sans-serif" font-size="9" font-weight="500" letter-spacing="1">Bespoke AI Wash</text>
 
-      <rect x="38" y="22" width="124" height="34" rx="8" fill="url(#panel-${kind})" stroke="#cfd8e2" stroke-width="1"/>
-      <rect x="46" y="30" width="52" height="18" rx="4" fill="#0f1720"/>
-      <text x="72" y="43" text-anchor="middle" font-family="monospace" font-size="12" fill="${accent}" data-role="disp">--:--</text>
+      <circle cx="190" cy="72" r="20" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+      <circle cx="190" cy="72" r="16" fill="#0f172a"/>
+      <circle cx="190" cy="56" r="2.5" fill="#38bdf8" class="smart-led"/>
 
-      ${isWash ? `
-      <g>
-        <rect x="106" y="28" width="24" height="20" rx="3" fill="#e3edf7" stroke="#b9c9d8" stroke-width="1"/>
-        <rect x="109" y="46" width="18" height="2.4" rx="1.2" fill="#9fb3c4"/>
-        <path d="M118 32 c3 4 3 7 0 9 c-3 -2 -3 -5 0 -9 z" fill="${accent}" opacity=".85"/>
-      </g>
-      <circle cx="146" cy="39" r="9" fill="#eef3f8" stroke="#c2ccd6" stroke-width="1.5"/>
-      <circle cx="146" cy="39" r="9" fill="url(#reflect-${kind})"/>
-      <line x1="146" y1="39" x2="146" y2="32" stroke="#7a8794" stroke-width="2" stroke-linecap="round"/>
-      ` : `
-      <g>
-        <circle cx="118" cy="39" r="11" fill="#eef3f8" stroke="#c2ccd6" stroke-width="1.5"/>
-        <path d="M118,39 m-9,0 a9,9 0 0 1 9,-9" stroke="#8fd6ff" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-        <path d="M118,39 m9,0 a9,9 0 0 1 -4.5,7.8" stroke="#ff8a3d" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-        <line x1="118" y1="39" x2="118" y2="31" stroke="#7a8794" stroke-width="2" stroke-linecap="round" transform="rotate(35 118 39)"/>
-      </g>
-      <g transform="translate(140,24)"><rect x="0" y="0" width="16" height="8" rx="4" fill="#cfd8e2" stroke="#b7c2ce"/>
-        <line x1="3" y1="4" x2="13" y2="4" stroke="#8b98a6" stroke-width="1.2"/></g>
-      `}
+      <rect x="230" y="47" width="110" height="50" rx="6" fill="#020617"/>
+      <text x="285" y="73" fill="#38bdf8" font-family="'Courier New',monospace" font-size="17" font-weight="bold"
+        text-anchor="middle" textLength="96" lengthAdjust="spacingAndGlyphs" data-role="disp">PRONTA</text>
+      <text x="285" y="88" fill="#0ea5e9" font-family="sans-serif" font-size="8" text-anchor="middle"
+        letter-spacing="0.5" data-role="dispw">-- W</text>
 
-      <circle cx="100" cy="138" r="64" fill="url(#glassrim-${kind})"/>
-      <circle cx="100" cy="138" r="64" fill="none" stroke="rgba(0,0,0,.15)" stroke-width="2"/>
-      <circle cx="100" cy="138" r="52" fill="url(#glass-${kind})"/>
+      <path d="M 322 55 A 6 6 0 0 1 330 55 M 324 58 A 4 4 0 0 1 328 58 M 326 61 A 1 1 0 0 1 326 61.5"
+        stroke="#38bdf8" stroke-width="1.5" fill="none" stroke-linecap="round"/>
 
-      ${isWash ? `
-      <g stroke="#8fd6ff" stroke-width="2" opacity=".65" stroke-linecap="round">
-        <line x1="158" y1="120" x2="164" y2="120"/><line x1="159" y1="128" x2="164" y2="128"/><line x1="159" y1="136" x2="164" y2="136"/>
-      </g>` : ``}
+      <circle cx="200" cy="280" r="142" fill="#090d16" stroke="#1e293b" stroke-width="2"/>
+      <circle cx="200" cy="280" r="132" fill="none" stroke="url(#ring-accent-w)" stroke-width="3" opacity="0.8"/>
+      <circle cx="200" cy="280" r="126" fill="#0f172a"/>
 
-      <g clip-path="url(#drumclip-${kind})">
-        <g class="cbc-drum" data-role="drum" style="transform-origin:100px 138px">
-          <circle cx="100" cy="138" r="50" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="10"/>
-          ${Array.from({ length: 12 }).map((_, i) => { const a = i * 30 * Math.PI / 180; const x1 = 100 + Math.cos(a) * 19, y1 = 138 + Math.sin(a) * 19, x2 = 100 + Math.cos(a) * 48, y2 = 138 + Math.sin(a) * 48; return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="rgba(255,255,255,.08)" stroke-width="2"/>`; }).join("")}
-          ${Array.from({ length: 24 }).map((_, i) => { const a = i * 15 * Math.PI / 180; const r = 37; const x = 100 + Math.cos(a) * r, y = 138 + Math.sin(a) * r; return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="rgba(255,255,255,.10)"/>`; }).join("")}
-          <ellipse cx="88" cy="148" rx="20" ry="14" fill="${isWash ? 'rgba(120,180,230,.30)' : 'rgba(255,180,120,.28)'}" class="cbc-cloth"/>
-          <ellipse cx="115" cy="130" rx="16" ry="11" fill="${isWash ? 'rgba(200,225,245,.25)' : 'rgba(255,210,170,.24)'}" class="cbc-cloth2"/>
+      <g clip-path="url(#smart-drum-clip-w)">
+        <g class="spin-drum">
+          <circle cx="200" cy="280" r="115" fill="#64748b"/>
+          <g fill="#334155">
+            <circle cx="200" cy="190" r="4"/><circle cx="200" cy="370" r="4"/>
+            <circle cx="110" cy="280" r="4"/><circle cx="290" cy="280" r="4"/>
+            <circle cx="136" cy="216" r="4"/><circle cx="264" cy="344" r="4"/>
+            <circle cx="136" cy="344" r="4"/><circle cx="264" cy="216" r="4"/>
+            <circle cx="165" cy="198" r="3"/><circle cx="235" cy="362" r="3"/>
+            <circle cx="118" cy="235" r="3"/><circle cx="282" cy="325" r="3"/>
+          </g>
+          <rect x="193" y="170" width="14" height="35" rx="4" fill="#cbd5e1"/>
+          <rect x="193" y="170" width="14" height="35" rx="4" fill="#cbd5e1" transform="rotate(120 200 280)"/>
+          <rect x="193" y="170" width="14" height="35" rx="4" fill="#cbd5e1" transform="rotate(240 200 280)"/>
+          <path d="M 160 250 Q 180 230 200 260 T 220 240 Q 240 270 210 290 Z" fill="#ef4444" opacity="0.85"/>
+          <path d="M 180 300 Q 210 280 230 310 T 190 330 Z" fill="#3b82f6" opacity="0.85"/>
+          <path d="M 140 280 Q 160 310 180 280 Z" fill="#10b981" opacity="0.8"/>
         </g>
-        ${isWash ? `
-        <g class="cbc-water" data-role="water">
-          <path class="cbc-wave" d="M48,164 q13,-8 26,0 t26,0 t26,0 t26,0 v40 h-104 z" fill="rgba(71,181,255,.42)"/>
-          <path class="cbc-wave2" d="M48,168 q13,7 26,0 t26,0 t26,0 t26,0 v40 h-104 z" fill="rgba(71,181,255,.28)"/>
+        <g class="wm-water">
+          <path class="water-path" d="M 70 320 Q 130 305 200 320 T 330 320 L 330 400 L 70 400 Z" fill="#0284c7" opacity="0.55"/>
+          <path class="water-path" d="M 70 328 Q 140 340 200 325 T 330 335 L 330 400 L 70 400 Z" fill="#38bdf8" opacity="0.4"/>
+          <circle cx="150" cy="350" r="6" fill="#ffffff" class="bubble-1"/>
+          <circle cx="185" cy="360" r="9" fill="#ffffff" class="bubble-2"/>
+          <circle cx="220" cy="345" r="5" fill="#ffffff" class="bubble-3"/>
+          <circle cx="250" cy="355" r="7" fill="#ffffff" class="bubble-4"/>
         </g>
-        <g class="cbc-foam" data-role="foam">
-          ${[[80, 166], [95, 170], [110, 164], [122, 169], [70, 171]].map((p, i) => `<circle class="cbc-bub b${i}" cx="${p[0]}" cy="${p[1]}" r="${3 + (i % 3)}" fill="rgba(255,255,255,.5)"/>`).join("")}
-        </g>` : `
-        <g class="cbc-heat" data-role="heat">
-          <circle cx="100" cy="138" r="50" fill="rgba(255,138,61,.10)"/>
-          ${[[80, 118], [100, 110], [120, 120]].map((p, i) => `<path class="cbc-vapor v${i}" d="M${p[0]},${p[1]} q6,-10 0,-20 q-6,-10 0,-20" stroke="rgba(255,220,180,.5)" stroke-width="3" fill="none" stroke-linecap="round"/>`).join("")}
-        </g>`}
       </g>
 
-      <ellipse cx="82" cy="118" rx="26" ry="16" fill="url(#reflect-${kind})" opacity=".5" transform="rotate(-25 82 118)"/>
-      <circle cx="100" cy="138" r="52" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="2"/>
-      <rect x="148" y="130" width="10" height="16" rx="4" fill="#cdd6df" stroke="#aeb9c4"/>
+      <circle cx="200" cy="280" r="115" fill="url(#door-glass-smart-w)"/>
+      <path d="M 125 205 A 100 100 0 0 1 275 205 A 115 115 0 0 0 125 205 Z" fill="#ffffff" opacity="0.2"/>
 
-      ${isWash ? `
-      <rect x="40" y="236" width="10" height="6" rx="2" fill="#b9c2cc"/><rect x="150" y="236" width="10" height="6" rx="2" fill="#b9c2cc"/>
-      ` : `
-      <g><rect x="55" y="210" width="90" height="16" rx="5" fill="#f2ede6" stroke="#d8cfc2" stroke-width="1.2"/>
-        <rect x="94" y="215" width="12" height="4" rx="2" fill="#c7bcac"/>
-        <text x="100" y="222" text-anchor="middle" font-size="6" fill="#9c8f7c" font-family="sans-serif">FILTRO</text></g>
-      <rect x="40" y="236" width="10" height="6" rx="2" fill="#c9bda8"/><rect x="150" y="236" width="10" height="6" rx="2" fill="#c9bda8"/>
-      `}
+      <rect x="50" y="440" width="80" height="8" rx="2" fill="#334155"/>
+    </svg>`;
+  }
+
+  _svgAsciugatriceSmart() {
+    return `
+    <svg viewBox="0 0 400 500" class="cbc-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <style>
+          .spin-dryer-basket{transform-origin:200px 280px}
+          .cbc-machine.running .spin-dryer-basket{animation:dryer-spin 4s linear infinite}
+          @keyframes dryer-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+          .wm-heat{opacity:0;transition:opacity .5s}
+          .cbc-machine[data-phase="heat"] .wm-heat{opacity:1}
+          .cbc-machine.running .air-stream{animation:warm-air-flow 2s linear infinite}
+          @keyframes warm-air-flow{0%{stroke-dashoffset:60;opacity:.2}50%{opacity:.9}100%{stroke-dashoffset:0;opacity:.2}}
+          .cbc-machine.running .heat-glow{animation:heat-pulse 2.5s ease-in-out infinite;transform-origin:200px 280px}
+          @keyframes heat-pulse{0%,100%{opacity:.3;transform:scale(.98)}50%{opacity:.7;transform:scale(1.02)}}
+          .smart-led{opacity:.25}
+          .cbc-machine.plug-on .smart-led{animation:led-blink 1.8s ease-in-out infinite}
+          @keyframes led-blink{0%,100%{opacity:1;filter:drop-shadow(0 0 3px #38bdf8)}50%{opacity:.4;filter:drop-shadow(0 0 1px #38bdf8)}}
+        </style>
+        <clipPath id="dryer-door-clip-d"><circle cx="200" cy="280" r="115"/></clipPath>
+        <linearGradient id="dryer-body-d" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+        <radialGradient id="dryer-glass-d" cx="30%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#fdba74" stop-opacity="0.15"/>
+          <stop offset="50%" stop-color="#0284c7" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#0f172a" stop-opacity="0.85"/>
+        </radialGradient>
+        <linearGradient id="heat-glow-grad-d" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f97316" stop-opacity="0.4"/><stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.1"/>
+        </linearGradient>
+        <linearGradient id="door-ring-accent-d" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#f97316"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="30" y="20" width="340" height="460" rx="24" fill="url(#dryer-body-d)" stroke="#334155" stroke-width="3"/>
+      <rect x="45" y="35" width="310" height="75" rx="12" fill="#090d16" stroke="#1e293b" stroke-width="2"/>
+      <text x="65" y="60" fill="#f8fafc" font-family="-apple-system,sans-serif" font-size="12" font-weight="800" letter-spacing="2.5">SAMSUNG</text>
+      <text x="65" y="75" fill="#94a3b8" font-family="-apple-system,sans-serif" font-size="9" font-weight="500" letter-spacing="1">Bespoke AI Dry</text>
+
+      <circle cx="190" cy="72" r="20" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+      <circle cx="190" cy="72" r="16" fill="#0f172a"/>
+      <circle cx="190" cy="56" r="2.5" fill="#38bdf8" class="smart-led"/>
+
+      <rect x="230" y="47" width="110" height="50" rx="6" fill="#020617"/>
+      <text x="285" y="73" fill="#38bdf8" font-family="'Courier New',monospace" font-size="17" font-weight="bold"
+        text-anchor="middle" textLength="96" lengthAdjust="spacingAndGlyphs" data-role="disp">PRONTA</text>
+      <text x="285" y="88" fill="#f97316" font-family="sans-serif" font-size="8" font-weight="bold" text-anchor="middle"
+        letter-spacing="0.5" data-role="dispw">-- W</text>
+
+      <path d="M 322 55 A 6 6 0 0 1 330 55 M 324 58 A 4 4 0 0 1 328 58 M 326 61 A 1 1 0 0 1 326 61.5"
+        stroke="#38bdf8" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+      <circle cx="200" cy="280" r="142" fill="#090d16" stroke="#1e293b" stroke-width="2"/>
+      <circle cx="200" cy="280" r="132" fill="none" stroke="url(#door-ring-accent-d)" stroke-width="2.5" opacity="0.85"/>
+      <circle cx="200" cy="280" r="126" fill="#0f172a"/>
+
+      <g clip-path="url(#dryer-door-clip-d)">
+        <g class="spin-dryer-basket">
+          <circle cx="200" cy="280" r="115" fill="#475569"/>
+          <g fill="#1e293b">
+            <circle cx="200" cy="180" r="3"/><circle cx="200" cy="380" r="3"/>
+            <circle cx="100" cy="280" r="3"/><circle cx="300" cy="280" r="3"/>
+            <circle cx="129" cy="209" r="3"/><circle cx="271" cy="351" r="3"/>
+            <circle cx="129" cy="351" r="3"/><circle cx="271" cy="209" r="3"/>
+            <circle cx="160" cy="190" r="2.5"/><circle cx="240" cy="370" r="2.5"/>
+            <circle cx="110" cy="240" r="2.5"/><circle cx="290" cy="320" r="2.5"/>
+          </g>
+          <rect x="194" y="170" width="12" height="40" rx="4" fill="#cbd5e1"/>
+          <rect x="194" y="170" width="12" height="40" rx="4" fill="#cbd5e1" transform="rotate(120 200 280)"/>
+          <rect x="194" y="170" width="12" height="40" rx="4" fill="#cbd5e1" transform="rotate(240 200 280)"/>
+          <path d="M 165 240 Q 185 220 210 250 T 225 230 Q 245 260 215 285 Z" fill="#38bdf8" opacity="0.9"/>
+          <path d="M 175 295 Q 205 270 235 300 T 185 325 Z" fill="#fbbf24" opacity="0.85"/>
+          <path d="M 135 270 Q 155 300 175 270 Z" fill="#f43f5e" opacity="0.8"/>
+        </g>
+        <g class="wm-heat">
+          <circle cx="200" cy="280" r="105" fill="url(#heat-glow-grad-d)" class="heat-glow"/>
+          <path class="air-stream" d="M 130 260 Q 200 210 270 260 Q 200 310 130 260" stroke="#f97316" stroke-width="4"
+            fill="none" stroke-linecap="round" stroke-dasharray="20 10"/>
+          <path class="air-stream" d="M 140 300 Q 200 250 260 300" stroke="#38bdf8" stroke-width="3"
+            fill="none" stroke-linecap="round" stroke-dasharray="20 10"/>
+        </g>
+      </g>
+
+      <circle cx="200" cy="280" r="115" fill="url(#dryer-glass-d)"/>
+      <path d="M 125 205 A 100 100 0 0 1 275 205 A 115 115 0 0 0 125 205 Z" fill="#ffffff" opacity="0.22"/>
+
+      <rect x="50" y="435" width="130" height="22" rx="4" fill="#1e293b" stroke="#334155"/>
+      <line x1="60" y1="446" x2="170" y2="446" stroke="#475569" stroke-width="2" stroke-dasharray="4 3"/>
     </svg>`;
   }
 
@@ -407,6 +501,8 @@ class CentroBucatoCard extends HTMLElement {
       else if (!running) disp.textContent = "PRONTA";
       else disp.textContent = dispLabelFor(this._cfg.kind, phase.key);
     }
+    const dispw = this._el.querySelector('[data-role="dispw"]');
+    if (dispw) dispw.textContent = (p != null ? Math.round(p) : "--") + " W";
     // Badge = comando: stato REALE della presa (fatto, non stima), separato dalla
     // fase — la presa può essere accesa anche a macchina ferma (in attesa). Tocco
     // il badge per accendere/spegnere; quando è acceso lampeggia piano e lo sfondo
