@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.0.1";
+const CBC_VERSION = "3.0.2";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -258,6 +258,13 @@ class CentroBucatoCard extends HTMLElement {
       .cbc-machine[data-phase="cool"] .cbc-led{background:#38e08a;box-shadow:0 0 10px #38e08a,0 0 0 2px rgba(0,0,0,.2)}
       @keyframes cbc-blink{50%{opacity:.35}}
       .cbc-name{font-size:16px;font-weight:800;margin-top:4px}
+      .cbc-plugbadge{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;margin-top:5px;
+        font-size:10.5px;font-weight:800;letter-spacing:.3px;background:rgba(255,255,255,.06);border:1px solid var(--cbc-stroke);color:var(--cbc-muted)}
+      .cbc-plugbadge .dot{width:7px;height:7px;border-radius:50%;background:#5a6572;flex:0 0 auto}
+      .cbc-plugbadge[data-plug="on"]{background:rgba(56,224,138,.14);border-color:rgba(56,224,138,.4);color:#8ff0b4}
+      .cbc-plugbadge[data-plug="on"] .dot{background:#38e08a;box-shadow:0 0 6px #38e08a}
+      .cbc-plugbadge[data-plug="off"]{background:rgba(255,84,66,.10);border-color:rgba(255,84,66,.3);color:#ffb0a3}
+      .cbc-plugbadge[data-plug="off"] .dot{background:#ff5442}
       .cbc-state{font-size:12.5px;font-weight:700;color:var(--cbc-muted);transition:color .3s}
       .cbc-machine[data-phase="wash"] .cbc-state{color:#47b5ff}
       .cbc-machine[data-phase="spin"] .cbc-state{color:#a06bff}
@@ -324,6 +331,7 @@ class CentroBucatoCard extends HTMLElement {
       <div class="cbc-machine" data-kind="${isWash ? 'wash' : 'dry'}">
         <div class="cbc-glass-wrap" data-role="tap">${this._machineSVG()}<div class="cbc-led" data-role="led"></div></div>
         <div class="cbc-name">${this._esc(this._cfg.name)}</div>
+        <div class="cbc-plugbadge" data-role="plugbadge" hidden><span class="dot"></span><span class="lbl">—</span></div>
         <div class="cbc-state" data-role="state">—</div>
         <div class="cbc-metrics"><div class="cbc-metric"><span data-role="power">–</span><small>W</small></div></div>
         <div class="cbc-lastcycle" data-role="lastcycle" hidden></div>
@@ -365,6 +373,15 @@ class CentroBucatoCard extends HTMLElement {
       btn.textContent = on ? "🔌 Spegni presa" : "🔌 Accendi presa";
       btn.dataset.on = on ? "1" : "0";
     } else btn.hidden = true;
+    // Badge dedicato: stato REALE della presa (fatto, non stima), separato dalla
+    // fase — la presa può essere accesa anche a macchina ferma (in attesa).
+    const badge = this._el.querySelector('[data-role="plugbadge"]');
+    if (sw) {
+      badge.hidden = false;
+      const plugOn = sw.state === "on";
+      badge.dataset.plug = plugOn ? "on" : "off";
+      badge.querySelector(".lbl").textContent = plugOn ? "Presa accesa" : "Presa spenta";
+    } else badge.hidden = true;
     const lc = this._el.querySelector('[data-role="lastcycle"]');
     const hist = this._hist;
     if (hist && hist.cycles && hist.cycles.length) {
