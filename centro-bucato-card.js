@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.3.4";
+const CBC_VERSION = "3.3.5";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -373,6 +373,11 @@ class CentroBucatoCard extends HTMLElement {
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--cbc-ink);padding:6px;
         min-height:100%;display:flex;flex-direction:column}
       .cbc *{box-sizing:border-box}
+      /* L'attributo hidden e solo un display:none del browser: una regola di
+         classe con un display: proprio lo batte, e il riquadro che il codice
+         crede nascosto resta li in bella vista. Questa riga glielo
+         restituisce. */
+      .cbc [hidden]{display:none!important}
       .cbc-machine{background:var(--cbc-panel);border:1px solid var(--cbc-stroke);border-radius:22px;padding:16px 14px;
         flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;backdrop-filter:blur(14px);
         box-shadow:0 10px 26px rgba(0,0,0,.35);position:relative;overflow:hidden}
