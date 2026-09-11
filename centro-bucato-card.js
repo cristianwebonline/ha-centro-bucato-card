@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.3.6";
+const CBC_VERSION = "3.4.0";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -384,7 +384,19 @@ class CentroBucatoCard extends HTMLElement {
       .cbc-machine::before{content:"";position:absolute;inset:0;border-radius:22px;pointer-events:none;
         background:radial-gradient(120% 60% at 50% -10%,rgba(255,255,255,.06),transparent 60%)}
       .cbc-glass-wrap{position:relative;width:100%;max-width:210px;cursor:pointer}
-      .cbc-svg{width:100%;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
+      /* I disegni hanno viewBox alti (il frigo e 400x650): a larghezza piena
+         l'illustrazione da sola e piu alta che larga, e la card diventava un
+         rettangolo lunghissimo - sul telefono, a una colonna, insostenibile.
+         Qui il disegno non puo superare meta della larghezza della card: il
+         resto dello spazio va a nome, stato e tasti, e la card viene quasi
+         quadrata. Il disegno non si deforma, si rimpicciolisce e si centra.
+         Il contenitore e .cbc-machine, non .cbc: lo scrim a schermo intero
+         e appeso a .cbc e deve restare FUORI da un container, se no torna a
+         restare prigioniero della card. */
+      .cbc-machine{container-type:inline-size}
+      .cbc-svg{width:100%;height:auto;display:block;max-height:54cqw;
+        filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
+      @supports not (max-height:1cqw){ .cbc-svg{max-height:200px} }
       .cbc-led{position:absolute;top:20px;right:20%;width:9px;height:9px;border-radius:50%;background:#556;
         box-shadow:0 0 0 2px rgba(0,0,0,.2);transition:background .3s}
       .cbc-machine.running .cbc-led{animation:cbc-blink 1.6s infinite}
