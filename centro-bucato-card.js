@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.4.0";
+const CBC_VERSION = "3.5.0";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -394,7 +394,10 @@ class CentroBucatoCard extends HTMLElement {
          e appeso a .cbc e deve restare FUORI da un container, se no torna a
          restare prigioniero della card. */
       .cbc-machine{container-type:inline-size}
-      .cbc-svg{width:100%;height:auto;display:block;max-height:54cqw;
+      /* Il disegno ha un tetto anche in pixel, scelto dalla configurazione:
+         legato alla sola larghezza, in una card larga quanto il telefono
+         diventava un quadro da mezzo schermo. */
+      .cbc-svg{width:100%;height:auto;display:block;max-height:min(54cqw,var(--cbc-dis,190px));
         filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
       @supports not (max-height:1cqw){ .cbc-svg{max-height:200px} }
       .cbc-led{position:absolute;top:20px;right:20%;width:9px;height:9px;border-radius:50%;background:#556;
@@ -406,6 +409,8 @@ class CentroBucatoCard extends HTMLElement {
       .cbc-machine[data-phase="cool"] .cbc-led{background:#38e08a;box-shadow:0 0 10px #38e08a,0 0 0 2px rgba(0,0,0,.2)}
       @keyframes cbc-blink{50%{opacity:.35}}
       .cbc-name{font-size:16px;font-weight:800;margin-top:4px}
+      /* Le scritte seguono la larghezza della card invece di andare a capo. */
+      .cbc-name{font-size:clamp(12.5px,9.5cqw,17px);line-height:1.15;text-align:center}
       .cbc-plugbadge{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;margin-top:5px;
         font-size:10.5px;font-weight:800;letter-spacing:.3px;background:rgba(255,255,255,.06);border:1px solid var(--cbc-stroke);
         color:var(--cbc-muted);cursor:pointer;transition:transform .12s,filter .15s}
@@ -420,20 +425,26 @@ class CentroBucatoCard extends HTMLElement {
       /* sfondo dell'intera card tinto quando la presa è accesa */
       .cbc-machine{transition:background-color .6s ease,border-color .6s ease}
       .cbc-machine.plug-on{background-color:rgba(56,224,138,.09);border-color:rgba(56,224,138,.28)}
-      .cbc-state{font-size:12.5px;font-weight:700;color:var(--cbc-muted);transition:color .3s}
+      .cbc-state{font-size:12.5px;font-weight:700;color:var(--cbc-muted);transition:color .3s;text-align:center}
+      .cbc-state{font-size:clamp(10.5px,7cqw,13.5px)}
       .cbc-machine[data-phase="wash"] .cbc-state{color:#47b5ff}
       .cbc-machine[data-phase="spin"] .cbc-state{color:#a06bff}
       .cbc-machine[data-phase="heat"] .cbc-state{color:#ff5442}
       .cbc-machine[data-phase="cool"] .cbc-state{color:#38e08a}
       .cbc-metrics{display:flex;gap:14px;margin-top:2px}
       .cbc-metric{font-size:22px;font-weight:850;font-variant-numeric:tabular-nums;line-height:1}
+      .cbc-metric{font-size:clamp(17px,13cqw,26px)}
       .cbc-metric small{font-size:10px;color:var(--cbc-muted);font-weight:700;margin-left:2px}
       .cbc-lastcycle{font-size:11.5px;color:var(--cbc-muted);text-align:center;line-height:1.4;margin-top:4px}
+      .cbc-lastcycle{font-size:clamp(9.5px,6.4cqw,12.5px);line-height:1.35}
       .cbc-lastcycle b{color:var(--cbc-ink);font-weight:800}
       .cbc-lastcycle .eur{color:#ffb020;font-weight:800}
       .cbc-actions{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:10px}
       .cbc-btn{background:rgba(255,255,255,.06);border:1px solid var(--cbc-stroke);color:var(--cbc-ink);
         border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;width:100%;transition:filter .15s}
+      .cbc-btn{font-size:clamp(10px,6.6cqw,13.5px);padding:clamp(7px,4.5cqw,11px) 6px;white-space:nowrap}
+      .cbc-plugbadge{font-size:clamp(8.5px,5.6cqw,10.5px);padding:clamp(3px,2cqw,5px) clamp(8px,5cqw,13px)}
+      .cbc-machine{padding:clamp(10px,6cqw,16px) clamp(8px,5cqw,14px)}
       .cbc-btn:hover{filter:brightness(1.25)}
       .cbc-btn-pwr[data-on="1"]{background:linear-gradient(135deg,rgba(71,181,255,.3),rgba(71,181,255,.15));border-color:transparent}
       .cbc-drum{animation:none}
@@ -485,18 +496,20 @@ class CentroBucatoCard extends HTMLElement {
     <div class="cbc">
       <div class="cbc-machine" data-kind="${isWash ? 'wash' : 'dry'}">
         <div class="cbc-glass-wrap" data-role="tap">${this._visual()}<div class="cbc-led" data-role="led"></div></div>
-        <div class="cbc-name">${this._esc(this._cfg.name)}</div>
+        <div class="cbc-name"${this._cfg.mostra_nome === false ? " hidden" : ""}>${this._esc(this._cfg.name)}</div>
         <div class="cbc-plugbadge" data-role="plugbadge" hidden><span class="dot"></span><span class="lbl">—</span></div>
-        <div class="cbc-state" data-role="state">—</div>
-        <div class="cbc-metrics"><div class="cbc-metric"><span data-role="power">–</span><small>W</small></div></div>
+        <div class="cbc-state" data-role="state"${this._cfg.mostra_stato === false ? " hidden" : ""}>—</div>
+        <div class="cbc-metrics"${this._cfg.mostra_watt === false ? " hidden" : ""}><div class="cbc-metric"><span data-role="power">–</span><small>W</small></div></div>
         <div class="cbc-lastcycle" data-role="lastcycle" hidden></div>
-        <div class="cbc-actions">
+        <div class="cbc-actions"${this._cfg.mostra_storico === false ? " hidden" : ""}>
           <button class="cbc-btn" data-role="histbtn">📜 Storico e costi</button>
         </div>
       </div>
     </div>`;
     stopSwipeNavHijack(this.querySelector(".cbc"));
     this._el = this.querySelector(".cbc-machine");
+    const misure = { piccolo: "120px", medio: "190px", grande: "280px" };
+    this._el.style.setProperty("--cbc-dis", misure[this._cfg.disegno] || misure.medio);
     this.querySelector('[data-role="tap"]').onclick = () => this._openHistory();
     this.querySelector('[data-role="histbtn"]').onclick = () => this._openHistory();
     const badge = this.querySelector('[data-role="plugbadge"]');
@@ -550,6 +563,7 @@ class CentroBucatoCard extends HTMLElement {
     if (hist && hist.cycles && hist.cycles.length) {
       const last = running ? hist.cycles.find(c => !this._isOngoing(c)) : hist.cycles[0];
       if (last) {
+        if (this._cfg.mostra_ultimo_ciclo === false) { lc.hidden = true; return; }
         lc.hidden = false;
         lc.innerHTML = `Ultimo ciclo: <b>~${last.hours}h</b> · <b>${this._fmt(last.kwh)} kWh</b> · <span class="eur">${this._fmtE(last.kwh)}</span>`;
       } else lc.hidden = true;
@@ -695,6 +709,22 @@ class CentroBucatoCardEditor extends HTMLElement {
             <option value="14"${c.storico_giorni == 14 ? " selected" : ""}>14 giorni</option>
             <option value="30"${c.storico_giorni == 30 ? " selected" : ""}>30 giorni</option></select></div>
       </div>
+      <div class="fld"><label>Dimensione del disegno</label>
+        <span class="h">Quanto spazio si prende l'immagine dentro la card.</span>
+        <select id="f_disegno">
+          <option value="piccolo"${c.disegno === "piccolo" ? " selected" : ""}>Piccolo</option>
+          <option value="medio"${(c.disegno || "medio") === "medio" ? " selected" : ""}>Medio</option>
+          <option value="grande"${c.disegno === "grande" ? " selected" : ""}>Grande</option>
+        </select></div>
+      <div class="fld"><label>Cosa si vede nella card</label>
+        <span class="h">Spegni quello che non guardi mai: la card si accorcia e le altre della
+        stessa riga restano allineate.</span>
+        <label><input type="checkbox" id="f_mnome"${c.mostra_nome !== false ? " checked" : ""}> Nome</label>
+        <label><input type="checkbox" id="f_mstato"${c.mostra_stato !== false ? " checked" : ""}> Riga di stato</label>
+        <label><input type="checkbox" id="f_mwatt"${c.mostra_watt !== false ? " checked" : ""}> Watt di adesso</label>
+        <label><input type="checkbox" id="f_mciclo"${c.mostra_ultimo_ciclo !== false ? " checked" : ""}> Ultimo ciclo (durata, kWh, costo)</label>
+        <label><input type="checkbox" id="f_mstorico"${c.mostra_storico !== false ? " checked" : ""}> Tasto "Storico e costi"</label>
+      </div>
       <div class="fld"><label>Foto (URL) — opzionale</label>
         <span class="h">Incolla il link di una foto vera della tua macchina per usarla al posto del disegno</span>
         <input type="text" id="f_photo" placeholder="https://..." value="${(c.photo_url || "").replace(/"/g, "&quot;")}"></div>
@@ -710,6 +740,10 @@ class CentroBucatoCardEditor extends HTMLElement {
     on("#f_sc", "change", e => this._set("soglia_centrifuga", parseInt(e.target.value) || 0));
     on("#f_sr", "change", e => this._set("soglia_riscaldamento", parseInt(e.target.value) || 0));
     on("#f_price", "change", e => this._set("prezzo_kwh", parseFloat(String(e.target.value).replace(",", ".")) || 0.30));
+    on("#f_disegno", "change", e => this._set("disegno", e.target.value));
+    [["#f_mnome", "mostra_nome"], ["#f_mstato", "mostra_stato"], ["#f_mwatt", "mostra_watt"],
+     ["#f_mciclo", "mostra_ultimo_ciclo"], ["#f_mstorico", "mostra_storico"]].forEach(([id, k]) =>
+      on(id, "change", e => this._set(k, e.target.checked)));
     on("#f_days", "change", e => this._set("storico_giorni", parseInt(e.target.value) || 14));
     on("#f_photo", "change", e => this._set("photo_url", e.target.value.trim()));
     this.querySelectorAll('input[type="text"], input[type="number"]').forEach(inp => {
