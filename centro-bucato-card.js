@@ -5,7 +5,7 @@
  *  dal server esterno. Metti due card (kind: lavatrice / kind: asciugatrice) per
  *  avere due controlli separati e spostabili singolarmente.
  */
-const CBC_VERSION = "3.5.0";
+const CBC_VERSION = "3.6.0";
 console.info(`%c CENTRO-BUCATO-CARD %c v${CBC_VERSION} `,
   "color:#06283d;background:#47b5ff;font-weight:700;border-radius:4px 0 0 4px",
   "color:#dff6ff;background:#06283d;border-radius:0 4px 4px 0");
@@ -474,6 +474,13 @@ class CentroBucatoCard extends HTMLElement {
       .cbc-scrim.on .cbc-modal{transform:none}
       .cbc-mh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
       .cbc-mt{font-size:17px;font-weight:850}
+      /* I tasti in cima alla finestra: grandi abbastanza per un dito. */
+      .cbc-azioni{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
+      .cbc-azione{flex:1 1 auto;min-width:104px;min-height:44px;padding:10px 12px;border-radius:13px;
+        border:1px solid var(--cbc-stroke);background:rgba(255,255,255,.07);color:var(--cbc-ink);
+        font:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:filter .15s,transform .1s}
+      .cbc-azione:hover{filter:brightness(1.2)}
+      .cbc-azione:active{transform:scale(.97)}
       .cbc-x{width:30px;height:30px;border-radius:50%;border:1px solid var(--cbc-stroke);background:rgba(255,255,255,.05);color:var(--cbc-ink);font-size:15px;cursor:pointer;flex:0 0 auto}
       .cbc-tabs{display:flex;gap:8px;margin-bottom:12px}
       .cbc-tab{flex:1;text-align:center;padding:8px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;
@@ -570,15 +577,58 @@ class CentroBucatoCard extends HTMLElement {
     } else lc.hidden = true;
   }
 
+  // LE AZIONI, TUTTE NELLO STESSO POSTO: accendere o spegnere la presa,
+  // aprire la scheda di Home Assistant, leggere il libretto. Il manuale
+  // altrimenti finisce in una tessera a parte che occupa mezza riga.
+  _barraAzioni() {
+    const c = this._cfg;
+    const sw = c.switch && this._hass && this._hass.states[c.switch];
+    const acceso = !!sw && ["on", "home", "open"].includes(sw.state);
+    const b = [];
+    if (sw) b.push(`<button class="cbc-azione" data-az="toggle">\u23fb ${acceso ? "Spegni" : "Accendi"}</button>`);
+    b.push(`<button class="cbc-azione" data-az="info">\u2139 Informazioni</button>`);
+    if ((c.manuale || "").trim()) {
+      b.push(`<button class="cbc-azione" data-az="manuale">\ud83d\udcd8 ${this._esc(c.manuale_nome || "Manuale")}</button>`);
+    }
+    return `<div class="cbc-azioni">${b.join("")}</div>`;
+  }
+
+  _wireAzioni(ov) {
+    const c = this._cfg;
+    ov.querySelectorAll("[data-az]").forEach(b => b.onclick = e => {
+      e.stopPropagation();
+      const a = b.dataset.az;
+      if (a === "toggle" && c.switch) {
+        this._hass.callService("homeassistant", "toggle", { entity_id: c.switch });
+        const t0 = b.textContent;
+        b.textContent = "Fatto \u2713";
+        setTimeout(() => { b.textContent = t0; }, 1500);
+      } else if (a === "info") {
+        this.dispatchEvent(new CustomEvent("hass-more-info", { bubbles: true, composed: true,
+          detail: { entityId: c.switch || c.power || c.energy } }));
+        ov.classList.remove("on");
+      } else if (a === "manuale") {
+        const u = String(c.manuale || "").trim();
+        if (!u) return;
+        if (u.startsWith("/") && !u.startsWith("/local/") && !u.startsWith("/api/")) {
+          history.pushState(null, "", u);
+          window.dispatchEvent(new CustomEvent("location-changed", { bubbles: true, composed: true }));
+        } else window.open(u, "_blank", "noopener");
+      }
+    });
+  }
+
   _openHistory() {
     const hist = this._hist, cfg = this._cfg;
     let ov = this.querySelector(".cbc-scrim");
     if (!ov) { ov = document.createElement("div"); ov.className = "cbc-scrim"; this.querySelector(".cbc").appendChild(ov); }
     if (!cfg.energy) {
       ov.innerHTML = `<div class="cbc-modal"><div class="cbc-mh"><div class="cbc-mt">${this._esc(cfg.name)}</div><button class="cbc-x">✕</button></div>
+        ${this._barraAzioni()}
         <div class="cbc-empty">Configura un sensore di energia (nell'editor della card) per vedere storico e grafico.</div></div>`;
       requestAnimationFrame(() => ov.classList.add("on"));
       ov.querySelector(".cbc-x").onclick = () => ov.classList.remove("on");
+      this._wireAzioni(ov);
       ov.onclick = e => { if (e.target === ov) ov.classList.remove("on"); };
       return;
     }
@@ -610,6 +660,7 @@ class CentroBucatoCard extends HTMLElement {
         <div class="cbc-mh"><div><div class="cbc-mt">${this._esc(cfg.name)}</div>
           <div style="font-size:11.5px;color:var(--cbc-muted);margin-top:2px">${this._fmt(totKwh)} kWh negli ultimi ${days} giorni · ${this._fmtE(totKwh)}</div></div>
           <button class="cbc-x">✕</button></div>
+        ${this._barraAzioni()}
         <div class="cbc-tabs">
           <div class="cbc-tab${period === "7" ? " sel" : ""}" data-p="7">7 giorni</div>
           <div class="cbc-tab${period === "30" ? " sel" : ""}" data-p="30">30 giorni</div>
@@ -619,6 +670,7 @@ class CentroBucatoCard extends HTMLElement {
         <div class="cbc-clist">${listHTML}</div>
       </div>`;
       ov.querySelector(".cbc-x").onclick = () => ov.classList.remove("on");
+      this._wireAzioni(ov);
       ov.querySelectorAll(".cbc-tab").forEach(t => t.onclick = () => { period = t.dataset.p; render(); });
     };
     render();
@@ -725,6 +777,12 @@ class CentroBucatoCardEditor extends HTMLElement {
         <label><input type="checkbox" id="f_mciclo"${c.mostra_ultimo_ciclo !== false ? " checked" : ""}> Ultimo ciclo (durata, kWh, costo)</label>
         <label><input type="checkbox" id="f_mstorico"${c.mostra_storico !== false ? " checked" : ""}> Tasto "Storico e costi"</label>
       </div>
+      <div class="fld"><label>Manuale — opzionale</label>
+        <span class="h">Il libretto: compare come tasto dentro la finestra della card. Link internet
+        o file caricato in Home Assistant (/local/lavatrice.pdf).</span>
+        <input type="text" id="f_manuale" placeholder="https://..." value="${(c.manuale || "").replace(/"/g, "&quot;")}"></div>
+      <div class="fld"><label>Scritta del tasto del manuale</label>
+        <input type="text" id="f_manualenome" placeholder="Manuale" value="${(c.manuale_nome || "").replace(/"/g, "&quot;")}"></div>
       <div class="fld"><label>Foto (URL) — opzionale</label>
         <span class="h">Incolla il link di una foto vera della tua macchina per usarla al posto del disegno</span>
         <input type="text" id="f_photo" placeholder="https://..." value="${(c.photo_url || "").replace(/"/g, "&quot;")}"></div>
@@ -741,6 +799,8 @@ class CentroBucatoCardEditor extends HTMLElement {
     on("#f_sr", "change", e => this._set("soglia_riscaldamento", parseInt(e.target.value) || 0));
     on("#f_price", "change", e => this._set("prezzo_kwh", parseFloat(String(e.target.value).replace(",", ".")) || 0.30));
     on("#f_disegno", "change", e => this._set("disegno", e.target.value));
+    on("#f_manuale", "change", e => this._set("manuale", e.target.value.trim()));
+    on("#f_manualenome", "change", e => this._set("manuale_nome", e.target.value.trim()));
     [["#f_mnome", "mostra_nome"], ["#f_mstato", "mostra_stato"], ["#f_mwatt", "mostra_watt"],
      ["#f_mciclo", "mostra_ultimo_ciclo"], ["#f_mstorico", "mostra_storico"]].forEach(([id, k]) =>
       on(id, "change", e => this._set(k, e.target.checked)));
